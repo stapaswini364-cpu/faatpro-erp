@@ -38,9 +38,7 @@ export const organizations = pgTable(
       length: 250,
     }),
 
-    isActive: boolean("is_active")
-      .notNull()
-      .default(true),
+    isActive: boolean("is_active").notNull().default(true),
 
     createdAt: timestamp("created_at", {
       withTimezone: true,
@@ -59,9 +57,7 @@ export const organizations = pgTable(
       table.clerkOrganizationId,
     ),
 
-    index("organizations_is_active_idx").on(
-      table.isActive,
-    ),
+    index("organizations_is_active_idx").on(table.isActive),
   ],
 );
 
@@ -147,9 +143,7 @@ export const companies = pgTable(
 
     financialYearEnd: date("financial_year_end"),
 
-    isActive: boolean("is_active")
-      .notNull()
-      .default(true),
+    isActive: boolean("is_active").notNull().default(true),
 
     createdAt: timestamp("created_at", {
       withTimezone: true,
@@ -164,21 +158,13 @@ export const companies = pgTable(
       .defaultNow(),
   },
   (table) => [
-    index("companies_organization_id_idx").on(
-      table.organizationId,
-    ),
+    index("companies_organization_id_idx").on(table.organizationId),
 
-    index("companies_gstin_idx").on(
-      table.gstin,
-    ),
+    index("companies_gstin_idx").on(table.gstin),
 
-    index("companies_pan_idx").on(
-      table.pan,
-    ),
+    index("companies_pan_idx").on(table.pan),
 
-    index("companies_is_active_idx").on(
-      table.isActive,
-    ),
+    index("companies_is_active_idx").on(table.isActive),
   ],
 );
 
@@ -256,13 +242,9 @@ export const branches = pgTable(
       .notNull()
       .default("India"),
 
-    isHeadOffice: boolean("is_head_office")
-      .notNull()
-      .default(false),
+    isHeadOffice: boolean("is_head_office").notNull().default(false),
 
-    isActive: boolean("is_active")
-      .notNull()
-      .default(true),
+    isActive: boolean("is_active").notNull().default(true),
 
     createdAt: timestamp("created_at", {
       withTimezone: true,
@@ -277,25 +259,15 @@ export const branches = pgTable(
       .defaultNow(),
   },
   (table) => [
-    index("branches_organization_id_idx").on(
-      table.organizationId,
-    ),
+    index("branches_organization_id_idx").on(table.organizationId),
 
-    index("branches_company_id_idx").on(
-      table.companyId,
-    ),
+    index("branches_company_id_idx").on(table.companyId),
 
-    index("branches_code_idx").on(
-      table.code,
-    ),
+    index("branches_code_idx").on(table.code),
 
-    index("branches_gstin_idx").on(
-      table.gstin,
-    ),
+    index("branches_gstin_idx").on(table.gstin),
 
-    index("branches_is_active_idx").on(
-      table.isActive,
-    ),
+    index("branches_is_active_idx").on(table.isActive),
   ],
 );
 
@@ -331,13 +303,9 @@ export const financialYears = pgTable(
 
     endDate: date("end_date").notNull(),
 
-    isActive: boolean("is_active")
-      .notNull()
-      .default(true),
+    isActive: boolean("is_active").notNull().default(true),
 
-    isClosed: boolean("is_closed")
-      .notNull()
-      .default(false),
+    isClosed: boolean("is_closed").notNull().default(false),
 
     createdAt: timestamp("created_at", {
       withTimezone: true,
@@ -352,21 +320,13 @@ export const financialYears = pgTable(
       .defaultNow(),
   },
   (table) => [
-    index("financial_years_organization_id_idx").on(
-      table.organizationId,
-    ),
+    index("financial_years_organization_id_idx").on(table.organizationId),
 
-    index("financial_years_company_id_idx").on(
-      table.companyId,
-    ),
+    index("financial_years_company_id_idx").on(table.companyId),
 
-    index("financial_years_is_active_idx").on(
-      table.isActive,
-    ),
+    index("financial_years_is_active_idx").on(table.isActive),
 
-    index("financial_years_is_closed_idx").on(
-      table.isClosed,
-    ),
+    index("financial_years_is_closed_idx").on(table.isClosed),
 
     index("financial_years_start_date_end_date_idx").on(
       table.startDate,

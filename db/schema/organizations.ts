@@ -48,12 +48,10 @@ export const organizations = pgTable(
       .defaultNow(),
   },
   (table) => ({
-    clerkOrganizationIdx: index(
-      "organizations_clerk_organization_id_idx",
-    ).on(table.clerkOrganizationId),
-
-    activeIdx: index("organizations_is_active_idx").on(
-      table.isActive,
+    clerkOrganizationIdx: index("organizations_clerk_organization_id_idx").on(
+      table.clerkOrganizationId,
     ),
+
+    activeIdx: index("organizations_is_active_idx").on(table.isActive),
   }),
 );

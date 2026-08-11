@@ -86,9 +86,7 @@ export const companies = pgTable(
 
     financialYearEnd: date("financial_year_end"),
 
-    isActive: boolean("is_active")
-      .notNull()
-      .default(true),
+    isActive: boolean("is_active").notNull().default(true),
 
     createdAt: timestamp("created_at", {
       withTimezone: true,
@@ -103,20 +101,14 @@ export const companies = pgTable(
       .defaultNow(),
   },
   (table) => ({
-    organizationIdx: index(
-      "companies_organization_id_idx",
-    ).on(table.organizationId),
+    organizationIdx: index("companies_organization_id_idx").on(
+      table.organizationId,
+    ),
 
-    gstinIdx: index(
-      "companies_gstin_idx",
-    ).on(table.gstin),
+    gstinIdx: index("companies_gstin_idx").on(table.gstin),
 
-    panIdx: index(
-      "companies_pan_idx",
-    ).on(table.pan),
+    panIdx: index("companies_pan_idx").on(table.pan),
 
-    activeIdx: index(
-      "companies_is_active_idx",
-    ).on(table.isActive),
+    activeIdx: index("companies_is_active_idx").on(table.isActive),
   }),
 );

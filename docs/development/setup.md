@@ -15,3 +15,4 @@ Before starting development, install:
 ```bash
 git clone <GITHUB_REPOSITORY_URL>
 cd faatpro-erp
+```
