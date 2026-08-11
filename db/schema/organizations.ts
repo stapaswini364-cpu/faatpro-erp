@@ -33,8 +33,10 @@ export const organizations = pgTable(
       length: 250,
     }),
 
+    // Soft-delete / active strategy
     isActive: boolean("is_active").notNull().default(true),
 
+    // Audit fields
     createdAt: timestamp("created_at", {
       withTimezone: true,
     })
@@ -46,12 +48,18 @@ export const organizations = pgTable(
     })
       .notNull()
       .defaultNow(),
+
+    createdBy: uuid("created_by"),
+
+    updatedBy: uuid("updated_by"),
   },
   (table) => ({
-    clerkOrganizationIdx: index("organizations_clerk_organization_id_idx").on(
-      table.clerkOrganizationId,
-    ),
+    clerkOrganizationIdx: index(
+      "organizations_clerk_organization_id_idx",
+    ).on(table.clerkOrganizationId),
 
-    activeIdx: index("organizations_is_active_idx").on(table.isActive),
+    activeIdx: index("organizations_is_active_idx").on(
+      table.isActive,
+    ),
   }),
 );

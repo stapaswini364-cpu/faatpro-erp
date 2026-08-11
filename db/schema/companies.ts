@@ -86,8 +86,10 @@ export const companies = pgTable(
 
     financialYearEnd: date("financial_year_end"),
 
+    // Soft-delete / active strategy
     isActive: boolean("is_active").notNull().default(true),
 
+    // Audit fields
     createdAt: timestamp("created_at", {
       withTimezone: true,
     })
@@ -99,6 +101,10 @@ export const companies = pgTable(
     })
       .notNull()
       .defaultNow(),
+
+    createdBy: uuid("created_by"),
+
+    updatedBy: uuid("updated_by"),
   },
   (table) => ({
     organizationIdx: index("companies_organization_id_idx").on(

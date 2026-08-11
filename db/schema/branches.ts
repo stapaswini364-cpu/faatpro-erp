@@ -79,10 +79,14 @@ export const branches = pgTable(
       .notNull()
       .default("India"),
 
-    isHeadOffice: boolean("is_head_office").notNull().default(false),
+    isHeadOffice: boolean("is_head_office")
+      .notNull()
+      .default(false),
 
+    // Soft-delete / active strategy
     isActive: boolean("is_active").notNull().default(true),
 
+    // Audit fields
     createdAt: timestamp("created_at", {
       withTimezone: true,
     })
@@ -94,18 +98,26 @@ export const branches = pgTable(
     })
       .notNull()
       .defaultNow(),
+
+    createdBy: uuid("created_by"),
+
+    updatedBy: uuid("updated_by"),
   },
   (table) => ({
     organizationIdx: index("branches_organization_id_idx").on(
       table.organizationId,
     ),
 
-    companyIdx: index("branches_company_id_idx").on(table.companyId),
+    companyIdx: index("branches_company_id_idx").on(
+      table.companyId,
+    ),
 
     codeIdx: index("branches_code_idx").on(table.code),
 
     gstinIdx: index("branches_gstin_idx").on(table.gstin),
 
-    activeIdx: index("branches_is_active_idx").on(table.isActive),
+    activeIdx: index("branches_is_active_idx").on(
+      table.isActive,
+    ),
   }),
 );
