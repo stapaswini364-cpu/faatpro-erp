@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
-import { db } from "@/db/connection";
+import { getDb } from "@/db/connection";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const result = await db.execute(sql`SELECT NOW() AS current_time`);
+    const db = getDb();
+
+    const result = await db.execute(
+      sql`SELECT NOW() AS current_time`
+    );
 
     return NextResponse.json({
       success: true,
