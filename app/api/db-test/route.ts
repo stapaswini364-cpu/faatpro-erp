@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@/db/connection";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const result = await db.execute(sql`SELECT NOW() AS current_time`);
