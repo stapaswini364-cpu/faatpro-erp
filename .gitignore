@@ -50,3 +50,4 @@ Thumbs.db
 *.temp
 .vercel
 .env*
+db/migrations_old/

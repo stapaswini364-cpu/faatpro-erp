@@ -7,6 +7,8 @@ CREATE TABLE "organizations" (
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"created_by" uuid,
+	"updated_by" uuid,
 	CONSTRAINT "organizations_clerk_organization_id_unique" UNIQUE("clerk_organization_id"),
 	CONSTRAINT "organizations_slug_unique" UNIQUE("slug")
 );
@@ -32,7 +34,9 @@ CREATE TABLE "companies" (
 	"financial_year_end" date,
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"created_by" uuid,
+	"updated_by" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "branches" (
@@ -54,7 +58,9 @@ CREATE TABLE "branches" (
 	"is_head_office" boolean DEFAULT false NOT NULL,
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"created_by" uuid,
+	"updated_by" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "financial_years" (
@@ -67,7 +73,9 @@ CREATE TABLE "financial_years" (
 	"is_active" boolean DEFAULT true NOT NULL,
 	"is_closed" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"created_by" uuid,
+	"updated_by" uuid
 );
 --> statement-breakpoint
 ALTER TABLE "companies" ADD CONSTRAINT "companies_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint

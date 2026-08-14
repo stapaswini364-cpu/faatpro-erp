@@ -1,4 +1,5 @@
 import { clerkClient } from "@clerk/nextjs/server";
+
 import { getTenantContext } from "../../lib/tenant";
 import OrganizationSwitcherComponent from "../components/OrganizationSwitcher";
 
@@ -6,13 +7,15 @@ export default async function DashboardPage() {
   const {
     userId,
     organizationId,
+    clerkOrganizationId,
+    organizationName,
     organizationRole,
   } = await getTenantContext();
 
   const client = await clerkClient();
 
   const organization = await client.organizations.getOrganization({
-    organizationId,
+    organizationId: clerkOrganizationId,
   });
 
   return (
@@ -40,11 +43,22 @@ export default async function DashboardPage() {
           </p>
 
           <p>
-            <strong>Tenant ID:</strong> {organizationId}
+            <strong>FAATPRO Tenant ID:</strong> {organizationId}
           </p>
 
           <p>
-            <strong>Organization:</strong> {organization.name}
+            <strong>Clerk Organization ID:</strong>{" "}
+            {clerkOrganizationId}
+          </p>
+
+          <p>
+            <strong>Organization:</strong>{" "}
+            {organization.name}
+          </p>
+
+          <p>
+            <strong>FAATPRO Organization Name:</strong>{" "}
+            {organizationName}
           </p>
 
           <p>
