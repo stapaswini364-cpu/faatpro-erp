@@ -7,6 +7,12 @@ import { organizations } from "../db/schema/organizations";
 export async function getTenantContext() {
   const { userId, orgId, orgRole } = await auth();
 
+  console.log("========== TENANT DEBUG ==========");
+  console.log("userId:", userId);
+  console.log("orgId from Clerk:", orgId);
+  console.log("orgRole:", orgRole);
+  console.log("===================================");
+
   if (!userId) {
     throw new Error("Unauthorized");
   }
@@ -30,24 +36,25 @@ export async function getTenantContext() {
     )
     .limit(1);
 
+  console.log(
+    "FAATPRO organization lookup:",
+    organization,
+  );
+
   if (organization.length === 0) {
-    throw new Error("Organization not registered in FAATPRO");
+    throw new Error(
+      `Organization not registered in FAATPRO: ${orgId}`,
+    );
   }
 
   const tenant = organization[0];
 
   return {
     userId,
-
-    // Clerk Organization ID
     clerkOrganizationId: tenant.clerkOrganizationId,
-
-    // FAATPRO PostgreSQL Organization UUID
     organizationId: tenant.id,
-
     organizationName: tenant.name,
     organizationSlug: tenant.slug,
-
     organizationRole: orgRole,
   };
 }
