@@ -17,7 +17,11 @@ export function getDb() {
   const client = postgres(connectionString, {
     max: 10,
     idle_timeout: 20,
-    connect_timeout: 10,
+    connect_timeout: 15,
+    prepare: false,
+    ssl: {
+      rejectUnauthorized: true,
+    },
   });
 
   dbInstance = drizzle(client);
