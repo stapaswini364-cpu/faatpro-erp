@@ -38,14 +38,13 @@ export const financialYears = pgTable(
 
     endDate: date("end_date").notNull(),
 
-    isActive: boolean("is_active")
-      .notNull()
-      .default(true),
+    // Soft-delete / active strategy
+    isActive: boolean("is_active").notNull().default(true),
 
-    isClosed: boolean("is_closed")
-      .notNull()
-      .default(false),
+    // Financial year closing status
+    isClosed: boolean("is_closed").notNull().default(false),
 
+    // Audit fields
     createdAt: timestamp("created_at", {
       withTimezone: true,
     })
@@ -57,6 +56,10 @@ export const financialYears = pgTable(
     })
       .notNull()
       .defaultNow(),
+
+    createdBy: uuid("created_by"),
+
+    updatedBy: uuid("updated_by"),
   },
   (table) => ({
     organizationIdx: index(

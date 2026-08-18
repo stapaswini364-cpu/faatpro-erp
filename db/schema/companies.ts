@@ -86,10 +86,10 @@ export const companies = pgTable(
 
     financialYearEnd: date("financial_year_end"),
 
-    isActive: boolean("is_active")
-      .notNull()
-      .default(true),
+    // Soft-delete / active strategy
+    isActive: boolean("is_active").notNull().default(true),
 
+    // Audit fields
     createdAt: timestamp("created_at", {
       withTimezone: true,
     })
@@ -101,22 +101,20 @@ export const companies = pgTable(
     })
       .notNull()
       .defaultNow(),
+
+    createdBy: uuid("created_by"),
+
+    updatedBy: uuid("updated_by"),
   },
   (table) => ({
-    organizationIdx: index(
-      "companies_organization_id_idx",
-    ).on(table.organizationId),
+    organizationIdx: index("companies_organization_id_idx").on(
+      table.organizationId,
+    ),
 
-    gstinIdx: index(
-      "companies_gstin_idx",
-    ).on(table.gstin),
+    gstinIdx: index("companies_gstin_idx").on(table.gstin),
 
-    panIdx: index(
-      "companies_pan_idx",
-    ).on(table.pan),
+    panIdx: index("companies_pan_idx").on(table.pan),
 
-    activeIdx: index(
-      "companies_is_active_idx",
-    ).on(table.isActive),
+    activeIdx: index("companies_is_active_idx").on(table.isActive),
   }),
 );
