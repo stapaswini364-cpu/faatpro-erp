@@ -22,9 +22,6 @@ if (!clerkOrganizationId) {
 }
 
 const rolePermissionMap: Record<string, string[]> = {
-  // =========================================================
-  // SUPER ADMIN
-  // =========================================================
   super_admin: [
     "ledger.view",
     "ledger.create",
@@ -70,17 +67,8 @@ const rolePermissionMap: Record<string, string[]> = {
     "role.create",
     "role.edit",
     "role.delete",
-
-    // Permission Management
-    "permission.view",
-    "permission.create",
-    "permission.edit",
-    "permission.delete",
   ],
 
-  // =========================================================
-  // COMPANY ADMIN
-  // =========================================================
   company_admin: [
     "company.view",
     "company.create",
@@ -124,9 +112,6 @@ const rolePermissionMap: Record<string, string[]> = {
     "report.export",
   ],
 
-  // =========================================================
-  // FINANCE MANAGER
-  // =========================================================
   finance_manager: [
     "ledger.view",
     "ledger.create",
@@ -149,9 +134,6 @@ const rolePermissionMap: Record<string, string[]> = {
     "customer.view",
   ],
 
-  // =========================================================
-  // ACCOUNTANT
-  // =========================================================
   accountant: [
     "ledger.view",
     "ledger.create",
@@ -169,9 +151,6 @@ const rolePermissionMap: Record<string, string[]> = {
     "report.export",
   ],
 
-  // =========================================================
-  // AUDITOR
-  // =========================================================
   auditor: [
     "ledger.view",
     "voucher.view",
@@ -185,9 +164,6 @@ const rolePermissionMap: Record<string, string[]> = {
     "role.view",
   ],
 
-  // =========================================================
-  // VIEWER
-  // =========================================================
   viewer: [
     "ledger.view",
     "voucher.view",
@@ -222,10 +198,6 @@ async function main() {
       clerkOrganizationId,
     );
 
-    // =======================================================
-    // FIND ORGANIZATION
-    // =======================================================
-
     const organization = await db
       .select()
       .from(organizations)
@@ -258,10 +230,6 @@ async function main() {
 
     console.log("----------------------------------------");
 
-    // =======================================================
-    // GET ORGANIZATION ROLES
-    // =======================================================
-
     const organizationRoles =
       await db
         .select()
@@ -279,24 +247,14 @@ async function main() {
       );
     }
 
-    // =======================================================
-    // GET ALL PERMISSIONS
-    // =======================================================
-
     const allPermissions =
-      await db
-        .select()
-        .from(permissions);
+      await db.select().from(permissions);
 
     if (allPermissions.length === 0) {
       throw new Error(
         "No permissions found. Run seed-permissions.ts first.",
       );
     }
-
-    // =======================================================
-    // CREATE PERMISSION MAP
-    // =======================================================
 
     const permissionMap = new Map<
       string,
@@ -310,16 +268,8 @@ async function main() {
       );
     }
 
-    // =======================================================
-    // COUNTERS
-    // =======================================================
-
     let createdCount = 0;
     let existingCount = 0;
-
-    // =======================================================
-    // PROCESS EACH ROLE
-    // =======================================================
 
     for (const role of organizationRoles) {
       const permissionCodes =
@@ -340,10 +290,6 @@ async function main() {
         `Permissions: ${permissionCodes.length}`,
       );
 
-      // =====================================================
-      // RESOLVE PERMISSION IDS
-      // =====================================================
-
       const permissionIds: string[] = [];
 
       for (const code of permissionCodes) {
@@ -360,10 +306,6 @@ async function main() {
           permission.id,
         );
       }
-
-      // =====================================================
-      // FIND EXISTING MAPPINGS
-      // =====================================================
 
       const existingMappings =
         await db
@@ -394,10 +336,6 @@ async function main() {
         );
       }
 
-      // =====================================================
-      // CREATE MISSING MAPPINGS
-      // =====================================================
-
       for (const permissionId of permissionIds) {
         if (
           existingPermissionIds.has(
@@ -422,23 +360,14 @@ async function main() {
           );
 
         console.log(
-          `  Created: ${
-            permission?.code ??
-            permissionId
-          }`,
+          `  Created: ${permission?.code ?? permissionId}`,
         );
 
         createdCount++;
       }
 
-      console.log(
-        "----------------------------------------",
-      );
+      console.log("----------------------------------------");
     }
-
-    // =======================================================
-    // FINAL SUMMARY
-    // =======================================================
 
     console.log(
       "========================================",

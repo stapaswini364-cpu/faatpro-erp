@@ -8,6 +8,25 @@ import { roles } from "@/db/schema/roles";
 import { userRoles } from "@/db/schema/user-roles";
 
 // ============================================================
+// RBAC ERROR
+// ============================================================
+
+export class PermissionError extends Error {
+  status: number;
+  permissionCode: string;
+
+  constructor(permissionCode: string) {
+    super(
+      `Forbidden: missing permission '${permissionCode}'`,
+    );
+
+    this.name = "PermissionError";
+    this.status = 403;
+    this.permissionCode = permissionCode;
+  }
+}
+
+// ============================================================
 // HAS PERMISSION
 // ============================================================
 
@@ -16,6 +35,14 @@ export async function hasPermission(
   organizationId: string,
   permissionCode: string,
 ): Promise<boolean> {
+  if (
+    !userId ||
+    !organizationId ||
+    !permissionCode
+  ) {
+    return false;
+  }
+
   const db = getDb();
 
   const result = await db
@@ -50,22 +77,18 @@ export async function hasPermission(
           userRoles.userId,
           userId,
         ),
-
         eq(
           userRoles.organizationId,
           organizationId,
         ),
-
         eq(
           roles.organizationId,
           organizationId,
         ),
-
         eq(
           roles.isActive,
           true,
         ),
-
         eq(
           permissions.code,
           permissionCode,
@@ -94,17 +117,9 @@ export async function requirePermission(
     );
 
   if (!allowed) {
-    const error = new Error(
-      `Forbidden: missing permission '${permissionCode}'`,
+    throw new PermissionError(
+      permissionCode,
     );
-
-    (
-      error as Error & {
-        status?: number;
-      }
-    ).status = 403;
-
-    throw error;
   }
 }
 
@@ -116,6 +131,13 @@ export async function getUserPermissions(
   userId: string,
   organizationId: string,
 ): Promise<string[]> {
+  if (
+    !userId ||
+    !organizationId
+  ) {
+    return [];
+  }
+
   const db = getDb();
 
   const result = await db
@@ -150,17 +172,14 @@ export async function getUserPermissions(
           userRoles.userId,
           userId,
         ),
-
         eq(
           userRoles.organizationId,
           organizationId,
         ),
-
         eq(
           roles.organizationId,
           organizationId,
         ),
-
         eq(
           roles.isActive,
           true,
@@ -168,15 +187,126 @@ export async function getUserPermissions(
       ),
     );
 
-  const codes: string[] = [];
-
-  for (const item of result) {
-    if (item.code) {
-      codes.push(item.code);
-    }
-  }
+  const codes = result
+    .map(
+      (item) => item.code,
+    )
+    .filter(
+      (
+        code,
+      ): code is string =>
+        Boolean(code),
+    );
 
   return Array.from(
     new Set(codes),
   );
+}
+
+// ============================================================
+// HAS ANY PERMISSION
+// ============================================================
+
+export async function hasAnyPermission(
+  userId: string,
+  organizationId: string,
+  permissionCodes: string[],
+): Promise<boolean> {
+  if (
+    !userId ||
+    !organizationId ||
+    permissionCodes.length === 0
+  ) {
+    return false;
+  }
+
+  const userPermissions =
+    new Set(
+      await getUserPermissions(
+        userId,
+        organizationId,
+      ),
+    );
+
+  return permissionCodes.some(
+    (code) =>
+      userPermissions.has(code),
+  );
+}
+
+// ============================================================
+// HAS ALL PERMISSIONS
+// ============================================================
+
+export async function hasAllPermissions(
+  userId: string,
+  organizationId: string,
+  permissionCodes: string[],
+): Promise<boolean> {
+  if (
+    !userId ||
+    !organizationId ||
+    permissionCodes.length === 0
+  ) {
+    return false;
+  }
+
+  const userPermissions =
+    new Set(
+      await getUserPermissions(
+        userId,
+        organizationId,
+      ),
+    );
+
+  return permissionCodes.every(
+    (code) =>
+      userPermissions.has(code),
+  );
+}
+
+// ============================================================
+// REQUIRE ANY PERMISSION
+// ============================================================
+
+export async function requireAnyPermission(
+  userId: string,
+  organizationId: string,
+  permissionCodes: string[],
+): Promise<void> {
+  const allowed =
+    await hasAnyPermission(
+      userId,
+      organizationId,
+      permissionCodes,
+    );
+
+  if (!allowed) {
+    throw new PermissionError(
+      permissionCodes.join(", "),
+    );
+  }
+}
+
+// ============================================================
+// REQUIRE ALL PERMISSIONS
+// ============================================================
+
+export async function requireAllPermissions(
+  userId: string,
+  organizationId: string,
+  permissionCodes: string[],
+): Promise<void> {
+  const allowed =
+    await hasAllPermissions(
+      userId,
+      organizationId,
+      permissionCodes,
+    );
+
+  if (!allowed) {
+    throw new PermissionError(
+      permissionCodes.join(", "),
+    );
+  }
 }
