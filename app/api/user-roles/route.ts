@@ -3,13 +3,13 @@ import { and, eq } from "drizzle-orm";
 
 import { getDb } from "@/db/connection";
 import { getTenantContext } from "@/lib/tenant";
-
 import { roles } from "@/db/schema/roles";
 import { userRoles } from "@/db/schema/user-roles";
+import { requirePermission } from "@/lib/rbac";
 
 // ============================================================
 // GET /api/user-roles?userId=<clerk-user-id>
-//
+// Permission: user_role.view
 // Get roles assigned to a user inside current organization
 // ============================================================
 
@@ -19,6 +19,12 @@ export async function GET(
   try {
     const tenant =
       await getTenantContext();
+
+    await requirePermission(
+      tenant.userId,
+      tenant.organizationId,
+      "user_role.view",
+    );
 
     const userId =
       request.nextUrl.searchParams.get(
@@ -127,14 +133,8 @@ export async function GET(
 
 // ============================================================
 // POST /api/user-roles
-//
+// Permission: user_role.create
 // Assign role to user
-//
-// Body:
-// {
-//   "userId": "user_xxx",
-//   "roleId": "uuid"
-// }
 // ============================================================
 
 export async function POST(
@@ -143,6 +143,12 @@ export async function POST(
   try {
     const tenant =
       await getTenantContext();
+
+    await requirePermission(
+      tenant.userId,
+      tenant.organizationId,
+      "user_role.create",
+    );
 
     const body =
       await request.json();
@@ -346,14 +352,8 @@ export async function POST(
 
 // ============================================================
 // DELETE /api/user-roles
-//
+// Permission: user_role.delete
 // Remove role from user
-//
-// Body:
-// {
-//   "userId": "user_xxx",
-//   "roleId": "uuid"
-// }
 // ============================================================
 
 export async function DELETE(
@@ -362,6 +362,12 @@ export async function DELETE(
   try {
     const tenant =
       await getTenantContext();
+
+    await requirePermission(
+      tenant.userId,
+      tenant.organizationId,
+      "user_role.delete",
+    );
 
     const body =
       await request.json();

@@ -4,15 +4,22 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/db/connection";
 import { getTenantContext } from "@/lib/tenant";
 import { permissions } from "@/db/schema/permissions";
+import { requirePermission } from "@/lib/rbac";
 
 // ============================================================
 // GET /api/permissions
-// Returns all available permissions
+// Permission: permission.view
 // ============================================================
 
 export async function GET() {
   try {
-    await getTenantContext();
+    const tenant = await getTenantContext();
+
+    await requirePermission(
+      tenant.userId,
+      tenant.organizationId,
+      "permission.view",
+    );
 
     const db = getDb();
 
@@ -66,14 +73,20 @@ export async function GET() {
 
 // ============================================================
 // POST /api/permissions
-// Create permission
+// Permission: permission.create
 // ============================================================
 
 export async function POST(
   request: NextRequest,
 ) {
   try {
-    await getTenantContext();
+    const tenant = await getTenantContext();
+
+    await requirePermission(
+      tenant.userId,
+      tenant.organizationId,
+      "permission.create",
+    );
 
     const body = await request.json();
 
@@ -117,6 +130,30 @@ export async function POST(
       String(action)
         .trim()
         .toLowerCase();
+
+    if (!normalizedModule) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Module is required",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    if (!normalizedAction) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Action is required",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
 
     const normalizedCode =
       code

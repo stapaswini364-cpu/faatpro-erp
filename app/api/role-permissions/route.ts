@@ -3,14 +3,14 @@ import { and, eq } from "drizzle-orm";
 
 import { getDb } from "@/db/connection";
 import { getTenantContext } from "@/lib/tenant";
-
 import { permissions } from "@/db/schema/permissions";
 import { rolePermissions } from "@/db/schema/role-permissions";
 import { roles } from "@/db/schema/roles";
+import { requirePermission } from "@/lib/rbac";
 
 // ============================================================
 // GET /api/role-permissions?roleId=<role-id>
-// Get permissions assigned to a role
+// Permission: role_permission.view
 // ============================================================
 
 export async function GET(
@@ -19,6 +19,12 @@ export async function GET(
   try {
     const tenant =
       await getTenantContext();
+
+    await requirePermission(
+      tenant.userId,
+      tenant.organizationId,
+      "role_permission.view",
+    );
 
     const roleId =
       request.nextUrl.searchParams.get(
@@ -152,14 +158,8 @@ export async function GET(
 
 // ============================================================
 // POST /api/role-permissions
-//
+// Permission: role_permission.create
 // Assign permission to role
-//
-// Body:
-// {
-//   "roleId": "...",
-//   "permissionId": "..."
-// }
 // ============================================================
 
 export async function POST(
@@ -168,6 +168,12 @@ export async function POST(
   try {
     const tenant =
       await getTenantContext();
+
+    await requirePermission(
+      tenant.userId,
+      tenant.organizationId,
+      "role_permission.create",
+    );
 
     const body =
       await request.json();
@@ -390,14 +396,8 @@ export async function POST(
 
 // ============================================================
 // DELETE /api/role-permissions
-//
+// Permission: role_permission.delete
 // Remove permission from role
-//
-// Body:
-// {
-//   "roleId": "...",
-//   "permissionId": "..."
-// }
 // ============================================================
 
 export async function DELETE(
@@ -406,6 +406,12 @@ export async function DELETE(
   try {
     const tenant =
       await getTenantContext();
+
+    await requirePermission(
+      tenant.userId,
+      tenant.organizationId,
+      "role_permission.delete",
+    );
 
     const body =
       await request.json();
