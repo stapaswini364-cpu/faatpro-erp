@@ -1,40 +1,37 @@
 import { NextResponse } from "next/server";
-import { inArray } from "drizzle-orm";
 
-import { getDb } from "@/db/connection";
 import { getTenantContext } from "@/lib/tenant";
-import { permissions } from "@/db/schema/permissions";
+import { getUserPermissions } from "@/lib/rbac";
+
+// ============================================================
+// GET /api/rbac-check
+// Returns permissions assigned to the current signed-in user
+// inside the current organization.
+// ============================================================
 
 export async function GET() {
   try {
-    const tenant = await getTenantContext();
-    const db = getDb();
+    const tenant =
+      await getTenantContext();
 
-    const result = await db
-      .select({
-        id: permissions.id,
-        module: permissions.module,
-        action: permissions.action,
-        code: permissions.code,
-        description: permissions.description,
-      })
-      .from(permissions)
-      .where(
-        inArray(permissions.module, [
-          "role",
-          "permission",
-          "role_permission",
-          "user_role",
-        ]),
+    const userPermissions =
+      await getUserPermissions(
+        tenant.userId,
+        tenant.organizationId,
       );
 
     return NextResponse.json({
       success: true,
-      organizationId: tenant.organizationId,
-      permissions: result,
+      userId: tenant.userId,
+      organizationId:
+        tenant.organizationId,
+      permissions: userPermissions,
     });
   } catch (error) {
-    console.error("RBAC check error:", error);
+    console.error(
+      "GET /api/rbac-check error:",
+      error,
+    );
 
     return NextResponse.json(
       {

@@ -3,19 +3,18 @@ import { and, eq } from "drizzle-orm";
 
 import { getDb } from "@/db/connection";
 import { getTenantContext } from "@/lib/tenant";
+import {
+  PermissionError,
+  requirePermission,
+} from "@/lib/rbac";
 import { roles } from "@/db/schema/roles";
-import { userRoles } from "@/db/schema/user-roles";
-import { requirePermission } from "@/lib/rbac";
 
 // ============================================================
-// GET /api/user-roles?userId=<clerk-user-id>
-// Permission: user_role.view
-// Get roles assigned to a user inside current organization
+// GET /api/roles
+// Permission: role.view
 // ============================================================
 
-export async function GET(
-  request: NextRequest,
-) {
+export async function GET() {
   try {
     const tenant =
       await getTenantContext();
@@ -23,75 +22,42 @@ export async function GET(
     await requirePermission(
       tenant.userId,
       tenant.organizationId,
-      "user_role.view",
+      "role.view",
     );
-
-    const userId =
-      request.nextUrl.searchParams.get(
-        "userId",
-      );
-
-    if (!userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "userId is required",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
 
     const db = getDb();
 
-    const result =
-      await db
-        .select({
-          id: userRoles.id,
-          organizationId:
-            userRoles.organizationId,
-          userId:
-            userRoles.userId,
-          roleId:
-            userRoles.roleId,
-          roleName:
-            roles.name,
-          roleCode:
-            roles.code,
-          isSystemRole:
-            roles.isSystemRole,
-          createdAt:
-            userRoles.createdAt,
-        })
-        .from(userRoles)
-        .innerJoin(
-          roles,
+    const result = await db
+      .select({
+        id: roles.id,
+        organizationId:
+          roles.organizationId,
+        name: roles.name,
+        code: roles.code,
+        description:
+          roles.description,
+        isSystemRole:
+          roles.isSystemRole,
+        isActive:
+          roles.isActive,
+        createdAt:
+          roles.createdAt,
+        updatedAt:
+          roles.updatedAt,
+      })
+      .from(roles)
+      .where(
+        and(
           eq(
-            userRoles.roleId,
-            roles.id,
+            roles.organizationId,
+            tenant.organizationId,
           ),
-        )
-        .where(
-          and(
-            eq(
-              userRoles.organizationId,
-              tenant.organizationId,
-            ),
-            eq(
-              userRoles.userId,
-              userId,
-            ),
-            eq(
-              roles.organizationId,
-              tenant.organizationId,
-            ),
-            eq(
-              roles.isActive,
-              true,
-            ),
+          eq(
+            roles.isActive,
+            true,
           ),
-        );
+        ),
+      );
 
     return NextResponse.json({
       success: true,
@@ -99,22 +65,22 @@ export async function GET(
     });
   } catch (error) {
     console.error(
-      "GET /api/user-roles error:",
+      "GET /api/roles error:",
       error,
     );
 
-    const status =
-      error instanceof Error &&
-      "status" in error &&
-      typeof (
-        error as { status?: unknown }
-      ).status === "number"
-        ? (
-            error as {
-              status: number;
-            }
-          ).status
-        : 500;
+    if (
+      error instanceof PermissionError
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: error.message,
+          code: "FORBIDDEN",
+        },
+        { status: 403 },
+      );
+    }
 
     return NextResponse.json(
       {
@@ -122,19 +88,16 @@ export async function GET(
         message:
           error instanceof Error
             ? error.message
-            : "Failed to fetch user roles",
+            : "Failed to fetch roles",
       },
-      {
-        status,
-      },
+      { status: 500 },
     );
   }
 }
 
 // ============================================================
-// POST /api/user-roles
-// Permission: user_role.create
-// Assign role to user
+// POST /api/roles
+// Permission: role.create
 // ============================================================
 
 export async function POST(
@@ -147,113 +110,80 @@ export async function POST(
     await requirePermission(
       tenant.userId,
       tenant.organizationId,
-      "user_role.create",
+      "role.create",
     );
+
+    const db = getDb();
 
     const body =
       await request.json();
 
     const {
-      userId,
-      roleId,
+      name,
+      code,
+      description,
     } = body;
 
-    if (!userId) {
+    if (!name) {
       return NextResponse.json(
         {
           success: false,
-          message: "userId is required",
+          message:
+            "Role name is required",
         },
-        {
-          status: 400,
-        },
+        { status: 400 },
       );
     }
 
-    if (!roleId) {
+    if (!code) {
       return NextResponse.json(
         {
           success: false,
-          message: "roleId is required",
+          message:
+            "Role code is required",
         },
-        {
-          status: 400,
-        },
+        { status: 400 },
       );
     }
 
-    const db = getDb();
+    const normalizedName =
+      String(name)
+        .trim();
 
-    // --------------------------------------------------------
-    // Verify role belongs to current organization
-    // --------------------------------------------------------
+    const normalizedCode =
+      String(code)
+        .trim()
+        .toLowerCase();
 
-    const role =
+    if (
+      !normalizedName ||
+      !normalizedCode
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Role name and code are required",
+        },
+        { status: 400 },
+      );
+    }
+
+    const existing =
       await db
         .select({
           id: roles.id,
-          name: roles.name,
-          code: roles.code,
-          isSystemRole:
-            roles.isSystemRole,
-          isActive:
-            roles.isActive,
         })
         .from(roles)
         .where(
           and(
             eq(
-              roles.id,
-              roleId,
-            ),
-            eq(
               roles.organizationId,
               tenant.organizationId,
             ),
             eq(
-              roles.isActive,
-              true,
-            ),
-          ),
-        )
-        .limit(1);
-
-    if (role.length === 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Role not found in this organization",
-        },
-        {
-          status: 404,
-        },
-      );
-    }
-
-    // --------------------------------------------------------
-    // Prevent duplicate assignment
-    // --------------------------------------------------------
-
-    const existing =
-      await db
-        .select({
-          id: userRoles.id,
-        })
-        .from(userRoles)
-        .where(
-          and(
-            eq(
-              userRoles.organizationId,
-              tenant.organizationId,
-            ),
-            eq(
-              userRoles.userId,
-              String(userId),
-            ),
-            eq(
-              userRoles.roleId,
-              roleId,
+              roles.code,
+              normalizedCode,
             ),
           ),
         )
@@ -264,76 +194,80 @@ export async function POST(
         {
           success: false,
           message:
-            "Role is already assigned to this user",
+            "Role code already exists in this organization",
         },
-        {
-          status: 409,
-        },
+        { status: 409 },
       );
     }
 
-    // --------------------------------------------------------
-    // Assign role
-    // --------------------------------------------------------
-
     const inserted =
       await db
-        .insert(userRoles)
+        .insert(roles)
         .values({
           organizationId:
             tenant.organizationId,
 
-          userId:
-            String(userId),
+          name:
+            normalizedName,
 
-          roleId,
+          code:
+            normalizedCode,
+
+          description:
+            description
+              ? String(
+                  description,
+                ).trim()
+              : null,
+
+          isSystemRole: false,
+          isActive: true,
         })
         .returning({
-          id: userRoles.id,
+          id: roles.id,
           organizationId:
-            userRoles.organizationId,
-          userId:
-            userRoles.userId,
-          roleId:
-            userRoles.roleId,
+            roles.organizationId,
+          name: roles.name,
+          code: roles.code,
+          description:
+            roles.description,
+          isSystemRole:
+            roles.isSystemRole,
+          isActive:
+            roles.isActive,
           createdAt:
-            userRoles.createdAt,
+            roles.createdAt,
+          updatedAt:
+            roles.updatedAt,
         });
 
     return NextResponse.json(
       {
         success: true,
         message:
-          "Role assigned to user successfully",
-        data: {
-          assignment:
-            inserted[0],
-          role:
-            role[0],
-        },
+          "Role created successfully",
+        data: inserted[0],
       },
-      {
-        status: 201,
-      },
+      { status: 201 },
     );
   } catch (error) {
     console.error(
-      "POST /api/user-roles error:",
+      "POST /api/roles error:",
       error,
     );
 
-    const status =
-      error instanceof Error &&
-      "status" in error &&
-      typeof (
-        error as { status?: unknown }
-      ).status === "number"
-        ? (
-            error as {
-              status: number;
-            }
-          ).status
-        : 500;
+    if (
+      error instanceof PermissionError
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: error.message,
+          code: "FORBIDDEN",
+        },
+        { status: 403 },
+      );
+    }
 
     return NextResponse.json(
       {
@@ -341,19 +275,289 @@ export async function POST(
         message:
           error instanceof Error
             ? error.message
-            : "Failed to assign user role",
+            : "Failed to create role",
       },
-      {
-        status,
-      },
+      { status: 500 },
     );
   }
 }
 
 // ============================================================
-// DELETE /api/user-roles
-// Permission: user_role.delete
-// Remove role from user
+// PUT /api/roles
+// Permission: role.edit
+// ============================================================
+
+export async function PUT(
+  request: NextRequest,
+) {
+  try {
+    const tenant =
+      await getTenantContext();
+
+    await requirePermission(
+      tenant.userId,
+      tenant.organizationId,
+      "role.edit",
+    );
+
+    const body =
+      await request.json();
+
+    const {
+      id,
+      name,
+      code,
+      description,
+      isActive,
+    } = body;
+
+    if (!id) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Role id is required",
+        },
+        { status: 400 },
+      );
+    }
+
+    const db = getDb();
+
+    const existingRole =
+      await db
+        .select({
+          id: roles.id,
+          organizationId:
+            roles.organizationId,
+          name: roles.name,
+          code: roles.code,
+          description:
+            roles.description,
+          isSystemRole:
+            roles.isSystemRole,
+          isActive:
+            roles.isActive,
+        })
+        .from(roles)
+        .where(
+          and(
+            eq(
+              roles.id,
+              String(id),
+            ),
+            eq(
+              roles.organizationId,
+              tenant.organizationId,
+            ),
+          ),
+        )
+        .limit(1);
+
+    if (
+      existingRole.length === 0
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Role not found",
+        },
+        { status: 404 },
+      );
+    }
+
+    const role =
+      existingRole[0];
+
+    if (
+      role.isSystemRole
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "System roles cannot be edited",
+        },
+        { status: 403 },
+      );
+    }
+
+    let normalizedCode:
+      | string
+      | undefined;
+
+    if (
+      code !== undefined &&
+      code !== null
+    ) {
+      normalizedCode =
+        String(code)
+          .trim()
+          .toLowerCase();
+
+      if (!normalizedCode) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Role code cannot be empty",
+          },
+          { status: 400 },
+        );
+      }
+    }
+
+    if (
+      normalizedCode &&
+      normalizedCode !==
+        role.code
+    ) {
+      const duplicate =
+        await db
+          .select({
+            id: roles.id,
+          })
+          .from(roles)
+          .where(
+            and(
+              eq(
+                roles.organizationId,
+                tenant.organizationId,
+              ),
+              eq(
+                roles.code,
+                normalizedCode,
+              ),
+            ),
+          )
+          .limit(1);
+
+      if (
+        duplicate.length > 0
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Role code already exists in this organization",
+          },
+          { status: 409 },
+        );
+      }
+    }
+
+    const updated =
+      await db
+        .update(roles)
+        .set({
+          ...(name !==
+            undefined && {
+            name:
+              String(
+                name,
+              ).trim(),
+          }),
+
+          ...(normalizedCode !==
+            undefined && {
+            code:
+              normalizedCode,
+          }),
+
+          ...(description !==
+            undefined && {
+            description:
+              description ===
+              null
+                ? null
+                : String(
+                    description,
+                  ).trim(),
+          }),
+
+          ...(isActive !==
+            undefined && {
+            isActive:
+              Boolean(
+                isActive,
+              ),
+          }),
+
+          updatedAt:
+            new Date(),
+        })
+        .where(
+          and(
+            eq(
+              roles.id,
+              String(id),
+            ),
+            eq(
+              roles.organizationId,
+              tenant.organizationId,
+            ),
+          ),
+        )
+        .returning({
+          id: roles.id,
+          organizationId:
+            roles.organizationId,
+          name: roles.name,
+          code: roles.code,
+          description:
+            roles.description,
+          isSystemRole:
+            roles.isSystemRole,
+          isActive:
+            roles.isActive,
+          createdAt:
+            roles.createdAt,
+          updatedAt:
+            roles.updatedAt,
+        });
+
+    return NextResponse.json({
+      success: true,
+      message:
+        "Role updated successfully",
+      data: updated[0],
+    });
+  } catch (error) {
+    console.error(
+      "PUT /api/roles error:",
+      error,
+    );
+
+    if (
+      error instanceof PermissionError
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: error.message,
+          code: "FORBIDDEN",
+        },
+        { status: 403 },
+      );
+    }
+
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Failed to update role",
+      },
+      { status: 500 },
+    );
+  }
+}
+
+// ============================================================
+// DELETE /api/roles
+// Permission: role.delete
 // ============================================================
 
 export async function DELETE(
@@ -366,48 +570,28 @@ export async function DELETE(
     await requirePermission(
       tenant.userId,
       tenant.organizationId,
-      "user_role.delete",
+      "role.delete",
     );
 
     const body =
       await request.json();
 
-    const {
-      userId,
-      roleId,
-    } = body;
+    const { id } = body;
 
-    if (!userId) {
+    if (!id) {
       return NextResponse.json(
         {
           success: false,
-          message: "userId is required",
+          message:
+            "Role id is required",
         },
-        {
-          status: 400,
-        },
-      );
-    }
-
-    if (!roleId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "roleId is required",
-        },
-        {
-          status: 400,
-        },
+        { status: 400 },
       );
     }
 
     const db = getDb();
 
-    // --------------------------------------------------------
-    // Verify role belongs to organization
-    // --------------------------------------------------------
-
-    const role =
+    const existingRole =
       await db
         .select({
           id: roles.id,
@@ -415,13 +599,15 @@ export async function DELETE(
           code: roles.code,
           isSystemRole:
             roles.isSystemRole,
+          organizationId:
+            roles.organizationId,
         })
         .from(roles)
         .where(
           and(
             eq(
               roles.id,
-              roleId,
+              String(id),
             ),
             eq(
               roles.organizationId,
@@ -431,88 +617,95 @@ export async function DELETE(
         )
         .limit(1);
 
-    if (role.length === 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Role not found",
-        },
-        {
-          status: 404,
-        },
-      );
-    }
-
-    // --------------------------------------------------------
-    // Remove role assignment
-    // --------------------------------------------------------
-
-    const deleted =
-      await db
-        .delete(userRoles)
-        .where(
-          and(
-            eq(
-              userRoles.organizationId,
-              tenant.organizationId,
-            ),
-            eq(
-              userRoles.userId,
-              String(userId),
-            ),
-            eq(
-              userRoles.roleId,
-              roleId,
-            ),
-          ),
-        )
-        .returning({
-          id: userRoles.id,
-          organizationId:
-            userRoles.organizationId,
-          userId:
-            userRoles.userId,
-          roleId:
-            userRoles.roleId,
-        });
-
-    if (deleted.length === 0) {
+    if (
+      existingRole.length === 0
+    ) {
       return NextResponse.json(
         {
           success: false,
           message:
-            "User role assignment not found",
+            "Role not found",
         },
+        { status: 404 },
+      );
+    }
+
+    const role =
+      existingRole[0];
+
+    if (
+      role.isSystemRole
+    ) {
+      return NextResponse.json(
         {
-          status: 404,
+          success: false,
+          message:
+            "System roles cannot be deleted",
         },
+        { status: 403 },
+      );
+    }
+
+    const deleted =
+      await db
+        .delete(roles)
+        .where(
+          and(
+            eq(
+              roles.id,
+              String(id),
+            ),
+            eq(
+              roles.organizationId,
+              tenant.organizationId,
+            ),
+          ),
+        )
+        .returning({
+          id: roles.id,
+          organizationId:
+            roles.organizationId,
+          name: roles.name,
+          code: roles.code,
+        });
+
+    if (
+      deleted.length === 0
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Role could not be deleted",
+        },
+        { status: 404 },
       );
     }
 
     return NextResponse.json({
       success: true,
       message:
-        "Role removed from user successfully",
+        "Role deleted successfully",
       data: deleted[0],
     });
   } catch (error) {
     console.error(
-      "DELETE /api/user-roles error:",
+      "DELETE /api/roles error:",
       error,
     );
 
-    const status =
-      error instanceof Error &&
-      "status" in error &&
-      typeof (
-        error as { status?: unknown }
-      ).status === "number"
-        ? (
-            error as {
-              status: number;
-            }
-          ).status
-        : 500;
+    if (
+      error instanceof PermissionError
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: error.message,
+          code: "FORBIDDEN",
+        },
+        { status: 403 },
+      );
+    }
 
     return NextResponse.json(
       {
@@ -520,11 +713,9 @@ export async function DELETE(
         message:
           error instanceof Error
             ? error.message
-            : "Failed to remove user role",
+            : "Failed to delete role",
       },
-      {
-        status,
-      },
+      { status: 500 },
     );
   }
 }
