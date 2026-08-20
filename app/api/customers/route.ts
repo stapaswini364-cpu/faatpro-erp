@@ -4,10 +4,11 @@ import { eq, and, desc } from "drizzle-orm";
 import { getTenantContext } from "@/lib/tenant";
 import { getDb } from "@/db/connection";
 import { customers } from "@/db/schema/customers";
+import { requirePermission } from "@/lib/rbac";
 
 // ============================================================
 // GET /api/customers
-// Returns customers belonging ONLY to the current tenant.
+// Permission: customer.view
 // ============================================================
 
 export async function GET() {
@@ -15,6 +16,20 @@ export async function GET() {
     const tenant = await getTenantContext();
 
     const db = getDb();
+
+    // --------------------------------------------------------
+    // RBAC
+    // --------------------------------------------------------
+
+    await requirePermission(
+      tenant.userId,
+      tenant.organizationId,
+      "customer.view",
+    );
+
+    // --------------------------------------------------------
+    // Tenant-aware query
+    // --------------------------------------------------------
 
     const result = await db
       .select({
@@ -48,26 +63,42 @@ export async function GET() {
   } catch (error) {
     console.error("Customer GET error:", error);
 
+    const status =
+      error instanceof Error &&
+      "status" in error
+        ? Number(
+            (
+              error as Error & {
+                status?: number;
+              }
+            ).status,
+          )
+        : 500;
+
     return NextResponse.json(
       {
         success: false,
         message:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch customers",
+          status === 403
+            ? error instanceof Error
+              ? error.message
+              : "Forbidden"
+            : error instanceof Error
+              ? error.message
+              : "Failed to fetch customers",
       },
-      { status: 401 },
+      { status },
     );
   }
 }
 
 // ============================================================
 // POST /api/customers
-// Creates a customer inside the CURRENT tenant.
+// Permission: customer.create
 //
 // IMPORTANT:
-// organizationId is NOT accepted from the frontend.
-// It is automatically taken from getTenantContext().
+// organizationId is NOT accepted from frontend.
+// It comes from getTenantContext().
 // ============================================================
 
 export async function POST(
@@ -75,6 +106,22 @@ export async function POST(
 ) {
   try {
     const tenant = await getTenantContext();
+
+    const db = getDb();
+
+    // --------------------------------------------------------
+    // RBAC
+    // --------------------------------------------------------
+
+    await requirePermission(
+      tenant.userId,
+      tenant.organizationId,
+      "customer.create",
+    );
+
+    // --------------------------------------------------------
+    // Request body
+    // --------------------------------------------------------
 
     const body = await request.json();
 
@@ -90,7 +137,7 @@ export async function POST(
     } = body;
 
     // --------------------------------------------------------
-    // Basic validation
+    // Validation
     // --------------------------------------------------------
 
     if (!customerCode) {
@@ -113,11 +160,9 @@ export async function POST(
       );
     }
 
-    const db = getDb();
-
     // --------------------------------------------------------
-    // Check duplicate customer code
-    // ONLY inside current tenant.
+    // Duplicate customer code
+    // ONLY current tenant
     // --------------------------------------------------------
 
     const existingCustomer = await db
@@ -152,14 +197,13 @@ export async function POST(
 
     // --------------------------------------------------------
     // Create customer
-    //
-    // organizationId comes from server-side tenant context.
     // --------------------------------------------------------
 
     const inserted = await db
       .insert(customers)
       .values({
-        organizationId: tenant.organizationId,
+        organizationId:
+          tenant.organizationId,
 
         customerCode,
         customerName,
@@ -175,9 +219,12 @@ export async function POST(
       })
       .returning({
         id: customers.id,
-        organizationId: customers.organizationId,
-        customerCode: customers.customerCode,
-        customerName: customers.customerName,
+        organizationId:
+          customers.organizationId,
+        customerCode:
+          customers.customerCode,
+        customerName:
+          customers.customerName,
         mobile: customers.mobile,
         email: customers.email,
         address: customers.address,
@@ -192,7 +239,8 @@ export async function POST(
     return NextResponse.json(
       {
         success: true,
-        message: "Customer created successfully",
+        message:
+          "Customer created successfully",
         data: inserted[0],
       },
       { status: 201 },
@@ -200,15 +248,31 @@ export async function POST(
   } catch (error) {
     console.error("Customer POST error:", error);
 
+    const status =
+      error instanceof Error &&
+      "status" in error
+        ? Number(
+            (
+              error as Error & {
+                status?: number;
+              }
+            ).status,
+          )
+        : 500;
+
     return NextResponse.json(
       {
         success: false,
         message:
-          error instanceof Error
-            ? error.message
-            : "Failed to create customer",
+          status === 403
+            ? error instanceof Error
+              ? error.message
+              : "Forbidden"
+            : error instanceof Error
+              ? error.message
+              : "Failed to create customer",
       },
-      { status: 500 },
+      { status },
     );
   }
 }

@@ -4,17 +4,35 @@ import { eq } from "drizzle-orm";
 import { getDb } from "../../../db/connection";
 import { companies } from "../../../db/schema/companies";
 import { getTenantContext } from "../../../lib/tenant";
+import { PermissionError, requirePermission } from "../../../lib/rbac";
+
+// ============================================================
+// GET /api/companies
+// Permission: company.view
+// ============================================================
 
 export async function GET() {
   try {
-    const { organizationId } = await getTenantContext();
+    const { userId, organizationId } =
+      await getTenantContext();
+
+    await requirePermission(
+      userId,
+      organizationId,
+      "company.view",
+    );
 
     const db = getDb();
 
     const data = await db
       .select()
       .from(companies)
-      .where(eq(companies.organizationId, organizationId));
+      .where(
+        eq(
+          companies.organizationId,
+          organizationId,
+        ),
+      );
 
     return NextResponse.json({
       success: true,
@@ -23,7 +41,21 @@ export async function GET() {
       data,
     });
   } catch (error) {
-    console.error("GET /api/companies error:", error);
+    console.error(
+      "GET /api/companies error:",
+      error,
+    );
+
+    if (error instanceof PermissionError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: error.message,
+          code: "FORBIDDEN",
+        },
+        { status: 403 },
+      );
+    }
 
     return NextResponse.json(
       {
@@ -38,9 +70,23 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+// ============================================================
+// POST /api/companies
+// Permission: company.create
+// ============================================================
+
+export async function POST(
+  request: Request,
+) {
   try {
-    const { userId, organizationId } = await getTenantContext();
+    const { userId, organizationId } =
+      await getTenantContext();
+
+    await requirePermission(
+      userId,
+      organizationId,
+      "company.create",
+    );
 
     const body = await request.json();
 
@@ -62,21 +108,36 @@ export async function POST(request: Request) {
         organizationId,
 
         name: body.name,
-        legalName: body.legalName ?? null,
-        registrationNumber: body.registrationNumber ?? null,
-        gstin: body.gstin ?? null,
-        pan: body.pan ?? null,
-        email: body.email ?? null,
-        phone: body.phone ?? null,
-        addressLine1: body.addressLine1 ?? null,
-        addressLine2: body.addressLine2 ?? null,
-        city: body.city ?? null,
-        state: body.state ?? null,
-        postalCode: body.postalCode ?? null,
-        country: body.country ?? "India",
-        baseCurrencyCode: body.baseCurrencyCode ?? "INR",
-        financialYearStart: body.financialYearStart ?? null,
-        financialYearEnd: body.financialYearEnd ?? null,
+        legalName:
+          body.legalName ?? null,
+        registrationNumber:
+          body.registrationNumber ?? null,
+        gstin:
+          body.gstin ?? null,
+        pan:
+          body.pan ?? null,
+        email:
+          body.email ?? null,
+        phone:
+          body.phone ?? null,
+        addressLine1:
+          body.addressLine1 ?? null,
+        addressLine2:
+          body.addressLine2 ?? null,
+        city:
+          body.city ?? null,
+        state:
+          body.state ?? null,
+        postalCode:
+          body.postalCode ?? null,
+        country:
+          body.country ?? "India",
+        baseCurrencyCode:
+          body.baseCurrencyCode ?? "INR",
+        financialYearStart:
+          body.financialYearStart ?? null,
+        financialYearEnd:
+          body.financialYearEnd ?? null,
 
         createdBy: userId,
         updatedBy: userId,
@@ -92,7 +153,21 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
-    console.error("POST /api/companies error:", error);
+    console.error(
+      "POST /api/companies error:",
+      error,
+    );
+
+    if (error instanceof PermissionError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: error.message,
+          code: "FORBIDDEN",
+        },
+        { status: 403 },
+      );
+    }
 
     return NextResponse.json(
       {

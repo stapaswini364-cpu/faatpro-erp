@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { getTenantContext } from "@/lib/tenant";
 import { getDb } from "@/db/connection";
 import { customers } from "@/db/schema/customers";
+import { requirePermission } from "@/lib/rbac";
 
 type RouteContext = {
   params: {
@@ -13,6 +14,7 @@ type RouteContext = {
 
 // ============================================================
 // GET /api/customers/[id]
+// Permission: customer.view
 // Returns ONLY the customer belonging to current tenant.
 // ============================================================
 
@@ -22,6 +24,16 @@ export async function GET(
 ) {
   try {
     const tenant = await getTenantContext();
+
+    // --------------------------------------------------------
+    // RBAC
+    // --------------------------------------------------------
+
+    await requirePermission(
+      tenant.userId,
+      tenant.organizationId,
+      "customer.view",
+    );
 
     const db = getDb();
 
@@ -68,23 +80,43 @@ export async function GET(
       data: result[0],
     });
   } catch (error) {
-    console.error("Customer GET by ID error:", error);
+    console.error(
+      "Customer GET by ID error:",
+      error,
+    );
+
+    const status =
+      error instanceof Error &&
+      "status" in error
+        ? Number(
+            (
+              error as Error & {
+                status?: number;
+              }
+            ).status,
+          )
+        : 500;
 
     return NextResponse.json(
       {
         success: false,
         message:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch customer",
+          status === 403
+            ? error instanceof Error
+              ? error.message
+              : "Forbidden"
+            : error instanceof Error
+              ? error.message
+              : "Failed to fetch customer",
       },
-      { status: 500 },
+      { status },
     );
   }
 }
 
 // ============================================================
 // PUT /api/customers/[id]
+// Permission: customer.edit
 // Updates ONLY the customer belonging to current tenant.
 // ============================================================
 
@@ -94,6 +126,16 @@ export async function PUT(
 ) {
   try {
     const tenant = await getTenantContext();
+
+    // --------------------------------------------------------
+    // RBAC
+    // --------------------------------------------------------
+
+    await requirePermission(
+      tenant.userId,
+      tenant.organizationId,
+      "customer.edit",
+    );
 
     const body = await request.json();
 
@@ -122,7 +164,7 @@ export async function PUT(
     const db = getDb();
 
     // --------------------------------------------------------
-    // Check that customer belongs to current tenant.
+    // Check customer belongs to current tenant
     // --------------------------------------------------------
 
     const existingCustomer = await db
@@ -153,13 +195,13 @@ export async function PUT(
     }
 
     // --------------------------------------------------------
-    // If customer code is changing, make sure the new code
-    // does not already exist in this tenant.
+    // Duplicate customer code
     // --------------------------------------------------------
 
     if (
       customerCode &&
-      customerCode !== existingCustomer[0].customerCode
+      customerCode !==
+        existingCustomer[0].customerCode
     ) {
       const duplicate = await db
         .select({
@@ -193,8 +235,8 @@ export async function PUT(
     }
 
     // --------------------------------------------------------
-    // Update only current tenant's record.
-    // organizationId is NEVER changed from request body.
+    // Update customer
+    // organizationId NEVER comes from request.
     // --------------------------------------------------------
 
     const updated = await db
@@ -254,9 +296,12 @@ export async function PUT(
       )
       .returning({
         id: customers.id,
-        organizationId: customers.organizationId,
-        customerCode: customers.customerCode,
-        customerName: customers.customerName,
+        organizationId:
+          customers.organizationId,
+        customerCode:
+          customers.customerCode,
+        customerName:
+          customers.customerName,
         mobile: customers.mobile,
         email: customers.email,
         address: customers.address,
@@ -280,27 +325,48 @@ export async function PUT(
 
     return NextResponse.json({
       success: true,
-      message: "Customer updated successfully",
+      message:
+        "Customer updated successfully",
       data: updated[0],
     });
   } catch (error) {
-    console.error("Customer PUT error:", error);
+    console.error(
+      "Customer PUT error:",
+      error,
+    );
+
+    const status =
+      error instanceof Error &&
+      "status" in error
+        ? Number(
+            (
+              error as Error & {
+                status?: number;
+              }
+            ).status,
+          )
+        : 500;
 
     return NextResponse.json(
       {
         success: false,
         message:
-          error instanceof Error
-            ? error.message
-            : "Failed to update customer",
+          status === 403
+            ? error instanceof Error
+              ? error.message
+              : "Forbidden"
+            : error instanceof Error
+              ? error.message
+              : "Failed to update customer",
       },
-      { status: 500 },
+      { status },
     );
   }
 }
 
 // ============================================================
 // DELETE /api/customers/[id]
+// Permission: customer.delete
 // Deletes ONLY the customer belonging to current tenant.
 // ============================================================
 
@@ -311,7 +377,21 @@ export async function DELETE(
   try {
     const tenant = await getTenantContext();
 
+    // --------------------------------------------------------
+    // RBAC
+    // --------------------------------------------------------
+
+    await requirePermission(
+      tenant.userId,
+      tenant.organizationId,
+      "customer.delete",
+    );
+
     const db = getDb();
+
+    // --------------------------------------------------------
+    // Delete only current tenant's customer
+    // --------------------------------------------------------
 
     const deleted = await db
       .delete(customers)
@@ -326,8 +406,10 @@ export async function DELETE(
       )
       .returning({
         id: customers.id,
-        customerCode: customers.customerCode,
-        customerName: customers.customerName,
+        customerCode:
+          customers.customerCode,
+        customerName:
+          customers.customerName,
       });
 
     if (deleted.length === 0) {
@@ -342,21 +424,41 @@ export async function DELETE(
 
     return NextResponse.json({
       success: true,
-      message: "Customer deleted successfully",
+      message:
+        "Customer deleted successfully",
       data: deleted[0],
     });
   } catch (error) {
-    console.error("Customer DELETE error:", error);
+    console.error(
+      "Customer DELETE error:",
+      error,
+    );
+
+    const status =
+      error instanceof Error &&
+      "status" in error
+        ? Number(
+            (
+              error as Error & {
+                status?: number;
+              }
+            ).status,
+          )
+        : 500;
 
     return NextResponse.json(
       {
         success: false,
         message:
-          error instanceof Error
-            ? error.message
-            : "Failed to delete customer",
+          status === 403
+            ? error instanceof Error
+              ? error.message
+              : "Forbidden"
+            : error instanceof Error
+              ? error.message
+              : "Failed to delete customer",
       },
-      { status: 500 },
+      { status },
     );
   }
 }
