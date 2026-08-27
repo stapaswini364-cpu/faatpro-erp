@@ -9,11 +9,17 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { organizations } from "./organizations";
+import { countries } from "./countries";
+import { states } from "./states";
+import { cities } from "./cities";
+import { currencies } from "./currencies";
 
 export const companies = pgTable(
   "companies",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
+    id: uuid("id")
+      .defaultRandom()
+      .primaryKey(),
 
     organizationId: uuid("organization_id")
       .notNull()
@@ -21,6 +27,10 @@ export const companies = pgTable(
         onDelete: "cascade",
         onUpdate: "cascade",
       }),
+
+    // ==========================================================
+    // COMPANY INFORMATION
+    // ==========================================================
 
     name: varchar("name", {
       length: 200,
@@ -30,9 +40,12 @@ export const companies = pgTable(
       length: 250,
     }),
 
-    registrationNumber: varchar("registration_number", {
-      length: 100,
-    }),
+    registrationNumber: varchar(
+      "registration_number",
+      {
+        length: 100,
+      },
+    ),
 
     gstin: varchar("gstin", {
       length: 15,
@@ -42,13 +55,9 @@ export const companies = pgTable(
       length: 10,
     }),
 
-    email: varchar("email", {
-      length: 255,
-    }),
-
-    phone: varchar("phone", {
-      length: 20,
-    }),
+    // ==========================================================
+    // ADDRESS
+    // ==========================================================
 
     addressLine1: varchar("address_line_1", {
       length: 250,
@@ -58,6 +67,50 @@ export const companies = pgTable(
       length: 250,
     }),
 
+    postalCode: varchar("postal_code", {
+      length: 20,
+    }),
+
+    // ==========================================================
+    // MASTER REFERENCES
+    // ==========================================================
+
+    countryId: uuid("country_id").references(
+      () => countries.id,
+      {
+        onDelete: "set null",
+        onUpdate: "cascade",
+      },
+    ),
+
+    stateId: uuid("state_id").references(
+      () => states.id,
+      {
+        onDelete: "set null",
+        onUpdate: "cascade",
+      },
+    ),
+
+    cityId: uuid("city_id").references(
+      () => cities.id,
+      {
+        onDelete: "set null",
+        onUpdate: "cascade",
+      },
+    ),
+
+    currencyId: uuid("currency_id").references(
+      () => currencies.id,
+      {
+        onDelete: "set null",
+        onUpdate: "cascade",
+      },
+    ),
+
+    // ==========================================================
+    // LEGACY / BACKWARD COMPATIBILITY FIELDS
+    // ==========================================================
+
     city: varchar("city", {
       length: 100,
     }),
@@ -66,30 +119,58 @@ export const companies = pgTable(
       length: 100,
     }),
 
-    postalCode: varchar("postal_code", {
-      length: 20,
-    }),
-
     country: varchar("country", {
       length: 100,
     })
       .notNull()
       .default("India"),
 
-    baseCurrencyCode: varchar("base_currency_code", {
-      length: 3,
-    })
+    baseCurrencyCode: varchar(
+      "base_currency_code",
+      {
+        length: 3,
+      },
+    )
       .notNull()
       .default("INR"),
 
-    financialYearStart: date("financial_year_start"),
+    // ==========================================================
+    // CONTACT
+    // ==========================================================
 
-    financialYearEnd: date("financial_year_end"),
+    email: varchar("email", {
+      length: 255,
+    }),
 
-    // Soft-delete / active strategy
-    isActive: boolean("is_active").notNull().default(true),
+    phone: varchar("phone", {
+      length: 20,
+    }),
 
-    // Audit fields
+    // ==========================================================
+    // FINANCIAL YEAR
+    // ==========================================================
+
+    financialYearStart: date(
+      "financial_year_start",
+    ),
+
+    financialYearEnd: date(
+      "financial_year_end",
+    ),
+
+    // ==========================================================
+    // STATUS
+    // ==========================================================
+
+    isActive: boolean("is_active")
+      .notNull()
+      .default(true),
+
+    // ==========================================================
+    // AUDIT FIELDS
+    // Clerk user IDs are strings, not UUIDs.
+    // ==========================================================
+
     createdAt: timestamp("created_at", {
       withTimezone: true,
     })
@@ -102,19 +183,49 @@ export const companies = pgTable(
       .notNull()
       .defaultNow(),
 
-    createdBy: uuid("created_by"),
+    createdBy: varchar("created_by", {
+      length: 255,
+    }),
 
-    updatedBy: uuid("updated_by"),
+    updatedBy: varchar("updated_by", {
+      length: 255,
+    }),
   },
+
   (table) => ({
-    organizationIdx: index("companies_organization_id_idx").on(
-      table.organizationId,
-    ),
+    // Organization
+    organizationIdx: index(
+      "companies_organization_id_idx",
+    ).on(table.organizationId),
 
-    gstinIdx: index("companies_gstin_idx").on(table.gstin),
+    // Master references
+    countryIdx: index(
+      "companies_country_id_idx",
+    ).on(table.countryId),
 
-    panIdx: index("companies_pan_idx").on(table.pan),
+    stateIdx: index(
+      "companies_state_id_idx",
+    ).on(table.stateId),
 
-    activeIdx: index("companies_is_active_idx").on(table.isActive),
+    cityIdx: index(
+      "companies_city_id_idx",
+    ).on(table.cityId),
+
+    currencyIdx: index(
+      "companies_currency_id_idx",
+    ).on(table.currencyId),
+
+    // Existing indexes
+    gstinIdx: index(
+      "companies_gstin_idx",
+    ).on(table.gstin),
+
+    panIdx: index(
+      "companies_pan_idx",
+    ).on(table.pan),
+
+    activeIdx: index(
+      "companies_is_active_idx",
+    ).on(table.isActive),
   }),
 );

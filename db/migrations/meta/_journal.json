@@ -36,6 +36,13 @@
       "when": 1786973930935,
       "tag": "0004_real_spitfire",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1787309717854,
+      "tag": "0005_loving_mole_man",
+      "breakpoints": true
     }
   ]
 }
